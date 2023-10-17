@@ -257,6 +257,19 @@
     return nil;
 }
 
+
+- (void)setFocusPointOfInterest:(CGPoint)focusPointOfInterest {
+    _focusPointOfInterest = focusPointOfInterest;
+    NSError *error;
+      if ([self.videoCamera.inputCamera lockForConfiguration:&error]) {
+          if ([self.videoCamera.inputCamera isFocusModeSupported:AVCaptureFocusModeAutoFocus]) {
+              [self.videoCamera.inputCamera setFocusPointOfInterest:focusPointOfInterest];
+              [self.videoCamera.inputCamera setFocusMode:AVCaptureFocusModeAutoFocus];
+          }
+          [self.videoCamera.inputCamera unlockForConfiguration];
+      }
+}
+
 - (GPUImageMovieWriter*)movieWriter{
     if(!_movieWriter){
         _movieWriter = [[GPUImageMovieWriter alloc] initWithMovieURL:self.saveLocalVideoPath size:self.configuration.videoSize];

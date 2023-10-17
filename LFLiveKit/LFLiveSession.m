@@ -344,6 +344,11 @@
     return self.videoCaptureSource.currentImage;
 }
 
+- (void)setFocusPointOfInterest:(CGPoint)focusPointOfInterest {
+    _focusPointOfInterest = focusPointOfInterest;
+    self.videoCaptureSource.focusPointOfInterest = focusPointOfInterest;
+}
+
 - (LFAudioCapture *)audioCaptureSource {
     if (!_audioCaptureSource) {
         if(self.captureType & LFLiveCaptureMaskAudio){

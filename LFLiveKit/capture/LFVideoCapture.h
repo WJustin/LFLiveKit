@@ -68,6 +68,9 @@
 /* The saveLocalVideoPath is save the local video  path */
 @property (nonatomic, strong, nullable) NSURL *saveLocalVideoPath;
 
+@property (nonatomic, assign) CGPoint focusPointOfInterest;
+
+
 #pragma mark - Initializer
 ///=============================================================================
 /// @name Initializer
