@@ -18,7 +18,7 @@
 #import "GPUImage.h"
 #endif
 
-@interface LFVideoCapture ()
+@interface LFVideoCapture ()<UIGestureRecognizerDelegate>
 
 @property (nonatomic, strong) GPUImageVideoCamera *videoCamera;
 @property (nonatomic, strong) LFGPUImageBeautyFilter *beautyFilter;
@@ -46,7 +46,7 @@
 - (instancetype)initWithVideoConfiguration:(LFLiveVideoConfiguration *)configuration {
     if (self = [super init]) {
         _configuration = configuration;
-
+        
         [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(willEnterBackground:) name:UIApplicationWillResignActiveNotification object:nil];
         [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(willEnterForeground:) name:UIApplicationDidBecomeActiveNotification object:nil];
         [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(statusBarChanged:) name:UIApplicationWillChangeStatusBarOrientationNotification object:nil];
@@ -192,10 +192,18 @@
 - (void)setZoomScale:(CGFloat)zoomScale {
     if (self.videoCamera && self.videoCamera.inputCamera) {
         AVCaptureDevice *device = (AVCaptureDevice *)self.videoCamera.inputCamera;
+        CGFloat factor = zoomScale;
+        NSInteger max = MIN(device.maxAvailableVideoZoomFactor, 3);
+        NSInteger min = MAX(device.minAvailableVideoZoomFactor, 1);
+        if (zoomScale > max) {
+            factor = max;
+        } else if (zoomScale < min) {
+            factor = min;
+        }
         if ([device lockForConfiguration:nil]) {
-            device.videoZoomFactor = zoomScale;
+            device.videoZoomFactor = factor;
             [device unlockForConfiguration];
-            _zoomScale = zoomScale;
+            _zoomScale = factor;
         }
     }
 }
@@ -245,6 +253,11 @@
         _gpuImageView = [[GPUImageView alloc] initWithFrame:[UIScreen mainScreen].bounds];
         [_gpuImageView setFillMode:kGPUImageFillModePreserveAspectRatioAndFill];
         [_gpuImageView setAutoresizingMask:UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight];
+        _gpuImageView.userInteractionEnabled = YES;
+        UIPinchGestureRecognizer *pinchGestureRecognizer =
+         [[UIPinchGestureRecognizer alloc] initWithTarget:self action:@selector(pinchGestureDetected:)];
+        [pinchGestureRecognizer setDelegate:self];
+        [_gpuImageView addGestureRecognizer:pinchGestureRecognizer];
     }
     return _gpuImageView;
 }
@@ -261,13 +274,13 @@
 - (void)setFocusPointOfInterest:(CGPoint)focusPointOfInterest {
     _focusPointOfInterest = focusPointOfInterest;
     NSError *error;
-      if ([self.videoCamera.inputCamera lockForConfiguration:&error]) {
-          if ([self.videoCamera.inputCamera isFocusModeSupported:AVCaptureFocusModeAutoFocus]) {
-              [self.videoCamera.inputCamera setFocusPointOfInterest:focusPointOfInterest];
-              [self.videoCamera.inputCamera setFocusMode:AVCaptureFocusModeAutoFocus];
-          }
-          [self.videoCamera.inputCamera unlockForConfiguration];
-      }
+    if ([self.videoCamera.inputCamera lockForConfiguration:&error]) {
+        if ([self.videoCamera.inputCamera isFocusModeSupported:AVCaptureFocusModeAutoFocus]) {
+            [self.videoCamera.inputCamera setFocusPointOfInterest:focusPointOfInterest];
+            [self.videoCamera.inputCamera setFocusMode:AVCaptureFocusModeAutoFocus];
+        }
+        [self.videoCamera.inputCamera unlockForConfiguration];
+    }
 }
 
 - (GPUImageMovieWriter*)movieWriter{
@@ -377,7 +390,7 @@
 - (void)statusBarChanged:(NSNotification *)notification {
     NSLog(@"UIApplicationWillChangeStatusBarOrientationNotification. UserInfo: %@", notification.userInfo);
     UIInterfaceOrientation statusBar = [[UIApplication sharedApplication] statusBarOrientation];
-
+    
     if(self.configuration.autorotate){
         if (self.configuration.landscape) {
             if (statusBar == UIInterfaceOrientationLandscapeLeft) {
@@ -394,5 +407,15 @@
         }
     }
 }
+
+- (void)pinchGestureDetected:(UIPinchGestureRecognizer *)recognizer {
+    if (recognizer.state == UIGestureRecognizerStateBegan || recognizer.state == UIGestureRecognizerStateChanged){
+        CGFloat scale = [recognizer scale];
+        CGFloat zoomScale = self.zoomScale;
+        zoomScale = zoomScale + (scale - 1.0) * 0.08;
+        self.zoomScale = zoomScale;
+     }
+}
+
 
 @end
